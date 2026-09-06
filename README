@@ -1,5 +1,3 @@
-qqqwm - quick, quiet, quality window manager
-
 DESCRIPTION
   Lightweight window manager for X11 with multi-workspace support.
   Written in C with minimal dependencies and macro-based design.
