@@ -1,10 +1,12 @@
 DESCRIPTION
-  Lightweight window manager for X11 with multi-workspace support.
+  Lightweight window manager for X11.
   Written in C with minimal dependencies and macro-based design.
 
 FEATURES
   - Keyboard and mouse control
-  - Window focus and management
+  - Focus follows mouse
+  - Move and resize windows with MOD + left/right mouse button
+  - Fullscreen, centering and window cycling
   - Configurable keybindings via config.h
 
 BUILD
@@ -20,4 +22,5 @@ CONFIGURATION
   Edit config.h before building to customize keybindings and behavior.
 
 USAGE
-  Start from .xinitrc or display manager
+  Start from .xinitrc or display manager, for example:
+    exec qqqwm
