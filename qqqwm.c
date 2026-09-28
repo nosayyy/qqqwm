@@ -4,18 +4,20 @@
 #include <X11/keysym.h>
 #include <X11/cursorfont.h>
 
-#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 
 #include "qqqwm.h"
 #include "config.h"
 
-static client *client_list = {0}, *workspace_clients[NUMBER_OF_WS] = {0}, *current_client;
+static client *client_list = {0}, *current_client;
 
 static int          window_x,     window_y,      num_lock_mask = 0;
-static int          screen_width, screen_height, current_workspace = 1;
+static int          screen_width, screen_height;
 static unsigned int window_width, window_height;
+
+static int          drag_x, drag_y;
+static unsigned int drag_width, drag_height;
 
 static Display *display;
 static Window root_window;
@@ -37,38 +39,48 @@ static void (*events[LASTEvent])(XEvent *e) = {
 void win_focus(client *c) {
     if (!c) {
         current_client = 0;
+        XSetInputFocus(display, root_window, RevertToPointerRoot, CurrentTime);
         return;
     }
 
     current_client = c;
-    XSetInputFocus(display, current_client->w, RevertToParent, CurrentTime);
+    XSetInputFocus(display, current_client->w, RevertToPointerRoot, CurrentTime);
 }
 
 void notify_enter(XEvent *e) {
     while(XCheckTypedEvent(display, EnterNotify, e));
 
+    if (e->xcrossing.mode != NotifyNormal || e->xcrossing.detail == NotifyInferior) return;
+
     for win if (client_item->w == e->xcrossing.window) win_focus(client_item);
 }
 
 void notify_destroy(XEvent *e) {
-    win_del(e->xdestroywindow.window);
+    Window w = e->xdestroywindow.window;
+    int was_current = current_client && current_client->w == w;
 
-    if (client_list) win_focus(client_list->prev);
+    if (mouse_event.subwindow == w) mouse_event.subwindow = 0;
+
+    win_del(w);
+
+    if (was_current) win_focus(client_list ? client_list->prev : 0);
 }
 
 void notify_motion(XEvent *e) {
-    if (!mouse_event.subwindow || !current_client || current_client->f) return;
+    if (!mouse_event.subwindow) return;
 
     while(XCheckTypedEvent(display, MotionNotify, e));
 
-    int x_delta = e->xbutton.x_root - mouse_event.x_root;
-    int y_delta = e->xbutton.y_root - mouse_event.y_root;
+    for win if (client_item->w == mouse_event.subwindow && client_item->f) return;
+
+    int x_delta = e->xmotion.x_root - mouse_event.x_root;
+    int y_delta = e->xmotion.y_root - mouse_event.y_root;
 
     XMoveResizeWindow(display, mouse_event.subwindow,
-        window_x + (mouse_event.button == 1 ? x_delta : 0),
-        window_y + (mouse_event.button == 1 ? y_delta : 0),
-        MAX(1, window_width + (mouse_event.button == 3 ? x_delta : 0)),
-        MAX(1, window_height + (mouse_event.button == 3 ? y_delta : 0)));
+        drag_x + (mouse_event.button == 1 ? x_delta : 0),
+        drag_y + (mouse_event.button == 1 ? y_delta : 0),
+        MAX(1, (int)drag_width  + (mouse_event.button == 3 ? x_delta : 0)),
+        MAX(1, (int)drag_height + (mouse_event.button == 3 ? y_delta : 0)));
 }
 
 void key_press(XEvent *e) {
@@ -83,7 +95,7 @@ void key_press(XEvent *e) {
 void button_press(XEvent *e) {
     if (!e->xbutton.subwindow) return;
 
-    win_size(e->xbutton.subwindow, &window_x, &window_y, &window_width, &window_height);
+    win_size(e->xbutton.subwindow, &drag_x, &drag_y, &drag_width, &drag_height);
     XRaiseWindow(display, e->xbutton.subwindow);
     mouse_event = e->xbutton;
 }
@@ -108,8 +120,6 @@ void win_add(Window w) {
         client_list = new_client;
         client_list->prev = client_list->next = client_list;
     }
-
-    ws_save(current_workspace);
 }
 
 void win_del(Window w) {
@@ -120,12 +130,13 @@ void win_del(Window w) {
     if (!client_list || !removed_client)        return;
     if (removed_client->prev == removed_client) client_list = 0;
     if (client_list == removed_client)          client_list = removed_client->next;
-    if (removed_client->next)                   removed_client->next->prev = removed_client->prev;
-    if (removed_client->prev)                   removed_client->prev->next = removed_client->next;
+
+    removed_client->next->prev = removed_client->prev;
+    removed_client->prev->next = removed_client->next;
+
     if (current_client == removed_client)       current_client = 0;
 
     free(removed_client);
-    ws_save(current_workspace);
 }
 
 void win_kill(const Arg arg) {
@@ -135,8 +146,7 @@ void win_kill(const Arg arg) {
 void win_center(const Arg arg) {
     if (!current_client) return;
 
-    win_size(current_client->w, &(int){0}, &(int){0},
-        &window_width, &window_height);
+    win_size(current_client->w, &(int){0}, &(int){0}, &window_width, &window_height);
     XMoveWindow(display, current_client->w,
         (screen_width - window_width) / 2,
         (screen_height - window_height) / 2);
@@ -146,35 +156,14 @@ void win_fs(const Arg arg) {
     if (!current_client) return;
 
     if ((current_client->f = current_client->f ? 0 : 1)) {
-        win_size(current_client->w, &current_client->wx, &current_client->wy,
-            &current_client->ww, &current_client->wh);
-        XMoveResizeWindow(display, current_client->w, 0, 0,
-            screen_width, screen_height);
-
+        win_size(current_client->w, &current_client->wx, &current_client->wy, &current_client->ww, &current_client->wh);
+        XMoveResizeWindow(display, current_client->w, 0, 0, screen_width, screen_height);
+        XRaiseWindow(display, current_client->w);
     } else {
         XMoveResizeWindow(display, current_client->w,
             current_client->wx, current_client->wy,
             current_client->ww, current_client->wh);
     }
-}
-
-void win_to_ws(const Arg arg) {
-    int previous_workspace = current_workspace;
-    Window window;
-
-    if (!current_client || arg.i == previous_workspace) return;
-    window = current_client->w;
-
-    ws_sel(arg.i);
-    win_add(window);
-    ws_save(arg.i);
-
-    ws_sel(previous_workspace);
-    win_del(window);
-    XUnmapWindow(display, window);
-    ws_save(previous_workspace);
-
-    if (client_list) win_focus(client_list);
 }
 
 void win_prev(const Arg arg) {
@@ -191,36 +180,27 @@ void win_next(const Arg arg) {
     win_focus(current_client->next);
 }
 
-void ws_go(const Arg arg) {
-    int previous_workspace = current_workspace;
-    if (arg.i == current_workspace) return;
-
-    ws_save(current_workspace);
-
-    ws_sel(arg.i);
-    for win XMapWindow(display, client_item->w);
-    ws_sel(previous_workspace);
-    for win XUnmapWindow(display, client_item->w);
-    ws_sel(arg.i);
-
-    if (client_list) win_focus(client_list); else current_client = 0;
-}
-
 void configure_request(XEvent *e) {
     XConfigureRequestEvent *ev = &e->xconfigurerequest;
 
-    XConfigureWindow(display, ev->window, ev->value_mask, &(XWindowChanges) {
+    XConfigureWindow(display, ev->window, ev->value_mask & ~CWSibling, &(XWindowChanges) {
         .x = ev->x,
         .y = ev->y,
         .width  = ev->width,
         .height = ev->height,
-        .sibling    = ev->above,
+        .border_width = ev->border_width,
         .stack_mode = ev->detail
     });
 }
 
 void map_request(XEvent *e) {
     Window w = e->xmaprequest.window;
+
+    for win if (client_item->w == w) {
+        XMapWindow(display, w);
+        win_focus(client_item);
+        return;
+    }
 
     XSelectInput(display, w, StructureNotifyMask|EnterWindowMask);
     win_size(w, &window_x, &window_y, &window_width, &window_height);
@@ -247,25 +227,32 @@ void run(const Arg arg) {
     if (display) close(ConnectionNumber(display));
 
     setsid();
+    signal(SIGCHLD, SIG_DFL);
     execvp((char*)arg.com[0], (char**)arg.com);
     
-    exit(111); /* Exit Failure */
+    _exit(111);
 }
 
 void input_grab(Window grab_window) {
     unsigned int i;
     unsigned int j;
-    unsigned int modifiers[] = {0, LockMask, num_lock_mask, num_lock_mask|LockMask}; 
 
     XModifierKeymap *modifier_map = XGetModifierMapping(display);
     KeyCode code;
+    KeyCode num_lock_code = XKeysymToKeycode(display, XK_Num_Lock);
 
-    for (i = 0; i < 8; i++)
-        for (int modifier_index = 0; modifier_index < modifier_map->max_keypermod; modifier_index++)
-            if (modifier_map->modifiermap[i * modifier_map->max_keypermod + modifier_index] == XKeysymToKeycode(display, 0xff7f))
-                num_lock_mask = (1 << i);
+    num_lock_mask = 0;
+
+    if (modifier_map && num_lock_code)
+        for (i = 0; i < 8; i++)
+            for (int modifier_index = 0; modifier_index < modifier_map->max_keypermod; modifier_index++)
+                if (modifier_map->modifiermap[i * modifier_map->max_keypermod + modifier_index] == num_lock_code)
+                    num_lock_mask = (1 << i);
+
+    unsigned int modifiers[] = {0, LockMask, num_lock_mask, num_lock_mask|LockMask};
 
     XUngrabKey(display, AnyKey, AnyModifier, grab_window);
+    XUngrabButton(display, AnyButton, AnyModifier, grab_window);
 
     for (i = 0; i < sizeof(keys)/sizeof(*keys); i++)
         if ((code = XKeysymToKeycode(display, keys[i].keysym)))
@@ -277,7 +264,7 @@ void input_grab(Window grab_window) {
             XGrabButton(display, i, MOD | modifiers[j], grab_window, True, ButtonPressMask|ButtonReleaseMask|PointerMotionMask,
                 GrabModeAsync, GrabModeAsync, 0, 0);
 
-    XFreeModifiermap(modifier_map);
+    if (modifier_map) XFreeModifiermap(modifier_map);
 }
 
 int main(void) {
@@ -286,7 +273,6 @@ int main(void) {
     if (!(display = XOpenDisplay(0))) exit(1);
 
     signal(SIGCHLD, SIG_IGN);
-    XSetErrorHandler(xerror);
 
     int s = DefaultScreen(display);
     root_window = RootWindow(display, s);
@@ -294,11 +280,14 @@ int main(void) {
     screen_width = XDisplayWidth(display, s);
     screen_height = XDisplayHeight(display, s);
 
+    XSetErrorHandler(xerror_start);
     XSelectInput(display, root_window, SubstructureRedirectMask);
+    XSync(display, False);
+    XSetErrorHandler(xerror);
     XDefineCursor(display, root_window, XCreateFontCursor(display, XC_left_ptr));
 
     input_grab(root_window);
 
-    while (1 && !XNextEvent(display, &ev)) // 1 && will forever be here...
-        if (events[ev.type]) events[ev.type](&ev);
+    while (!XNextEvent(display, &ev))
+        if (ev.type < LASTEvent && events[ev.type]) events[ev.type](&ev);
 }
