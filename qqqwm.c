@@ -68,11 +68,9 @@ void notify_destroy(XEvent *e) {
 
 void notify_motion(XEvent *e) {
     if (!mouse_event.subwindow) return;
-
+    
     while(XCheckTypedEvent(display, MotionNotify, e));
-
     for win if (client_item->w == mouse_event.subwindow && client_item->f) return;
-
     int x_delta = e->xmotion.x_root - mouse_event.x_root;
     int y_delta = e->xmotion.y_root - mouse_event.y_root;
 
@@ -112,10 +110,9 @@ void win_add(Window w) {
 
     if (client_list) {
         client_list->prev->next = new_client;
-        new_client->prev        = client_list->prev;
-        client_list->prev       = new_client;
-        new_client->next        = client_list;
-
+        new_client->prev = client_list->prev;
+        client_list->prev = new_client;
+        new_client->next = client_list;
     } else {
         client_list = new_client;
         client_list->prev = client_list->next = client_list;
@@ -134,8 +131,7 @@ void win_del(Window w) {
     removed_client->next->prev = removed_client->prev;
     removed_client->prev->next = removed_client->next;
 
-    if (current_client == removed_client)       current_client = 0;
-
+    if (current_client == removed_client) current_client = 0;
     free(removed_client);
 }
 
@@ -240,7 +236,6 @@ void input_grab(Window grab_window) {
     XModifierKeymap *modifier_map = XGetModifierMapping(display);
     KeyCode code;
     KeyCode num_lock_code = XKeysymToKeycode(display, XK_Num_Lock);
-
     num_lock_mask = 0;
 
     if (modifier_map && num_lock_code)
