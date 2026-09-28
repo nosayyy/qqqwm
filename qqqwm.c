@@ -253,8 +253,9 @@ void run(const Arg arg) {
 }
 
 void input_grab(Window grab_window) {
-
-    unsigned int i, j, modifiers[] = {0, LockMask, num_lock_mask, num_lock_mask|LockMask};
+    unsigned int i;
+    unsigned int j;
+    unsigned int modifiers[] = {0, LockMask, num_lock_mask, num_lock_mask|LockMask}; 
 
     XModifierKeymap *modifier_map = XGetModifierMapping(display);
     KeyCode code;
