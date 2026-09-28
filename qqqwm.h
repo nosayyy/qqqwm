@@ -2,14 +2,9 @@
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-#define win (client *previous_client = 0, *client_item = client_list; \
-             client_item && previous_client != client_list->prev;      \
-             previous_client = client_item, client_item = client_item->next)
-
-#define win_size(W, gx, gy, gw, gh)                          \
-    XGetGeometry(display, W, &(Window){0}, gx, gy, gw, gh,    \
-                                            &(unsigned int){0},\
-                                            &(unsigned int){0}  )
+#define win (client *previous_client = 0, *client_item = client_list; client_item && previous_client != client_list->prev; previous_client = client_item, client_item = client_item->next)
+#define win_size(W, gx, gy, gw, gh)                          
+    XGetGeometry(display, W, &(Window){0}, gx, gy, gw, gh, &(unsigned int){0}, &(unsigned int){0})
 
 #define mod_clean(mask) (mask & ~(num_lock_mask | LockMask) & \
         (ShiftMask | ControlMask | Mod1Mask | Mod2Mask | Mod3Mask | Mod4Mask | Mod5Mask))
