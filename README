@@ -1,26 +1,30 @@
 DESCRIPTION
-  Lightweight window manager for X11.
+  Lightweight window manager for Wayland.
   Written in C with minimal dependencies and macro-based design.
 
 FEATURES
-  - Keyboard and mouse control
   - Focus follows mouse
   - Move and resize windows with MOD + left/right mouse button
-  - Fullscreen, centering and window cycling
   - Configurable keybindings via config.h
 
 BUILD
-  make
-  make install PREFIX=/usr
+  meson setup build
+  meson compile -C build
+  meson install -C build
 
 REQUIREMENTS
-  - X11 development libraries (libx11-dev)
-  - GCC compiler
+  - Wayland development libraries:
+       - wayland
+       - wayland-protocols
+       - wlroots
+       - libinput
+       - libxkbcommon
+  - GCC/Clang compiler
   - POSIX environment
 
 CONFIGURATION
   Edit config.h before building to customize keybindings and behavior.
 
 USAGE
-  Start from .xinitrc or display manager, for example:
+  Start from .profile or display manager, for example:
     exec qqqwm
