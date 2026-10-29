@@ -15,8 +15,7 @@ void client_move_resize(struct client *c, int x, int y, int w, int h) {
 	wlr_xdg_toplevel_set_size(c->xdg->toplevel, c->w, c->h);
 }
 
-struct client *client_at(double lx, double ly, struct wlr_surface **psurf,
-                         double *sx, double *sy) {
+struct client *client_at(double lx, double ly, struct wlr_surface **psurf, double *sx, double *sy) {
 	struct wlr_scene_node *node;
 	struct wlr_scene_surface *ss;
 	struct wlr_surface *root;
@@ -27,17 +26,20 @@ struct client *client_at(double lx, double ly, struct wlr_surface **psurf,
 	*sx = *sy = 0;
 
 	node = wlr_scene_node_at(&scene->tree.node, lx, ly, &nx, &ny);
-	if (!node || node->type != WLR_SCENE_NODE_BUFFER)
+	if (!node || node->type != WLR_SCENE_NODE_BUFFER) {
 		return NULL;
+    }
 
 	ss = wlr_scene_surface_try_from_buffer(wlr_scene_buffer_from_node(node));
-	if (!ss)
+	if (!ss) {
 		return NULL;
+    }
 
 	root = wlr_surface_get_root_surface(ss->surface);
 	xdg = wlr_xdg_surface_try_from_wlr_surface(root);
-	if (!xdg || xdg->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+	if (!xdg || xdg->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
 		return NULL;
+    }
 
 	*psurf = ss->surface;
 	*sx = nx;
@@ -51,12 +53,14 @@ void focus(struct client *c, int lift) {
 	if (c == focused) {
 		if (c && lift)
 			wlr_scene_node_raise_to_top(&c->scene->node);
+
 		return;
 	}
 
-	if (focused && focused->mapped)
-		wlr_xdg_toplevel_set_activated(focused->xdg->toplevel, 0);
-	focused = c;
+	if (focused && focused->mapped) {
+        wlr_xdg_toplevel_set_activated(focused->xdg->toplevel, 0);
+    }
+    focused = c;
 
 	if (!c) {
 		wlr_seat_keyboard_notify_clear_focus(seat);
@@ -81,11 +85,13 @@ static void xdg_destroy(struct wl_listener *l, void *data) {
 	struct client *c = wl_container_of(l, c, destroy);
 	(void)data;
 
-	if (focused == c)
+	if (focused == c) {
 		focused = NULL;
+    }
 
-	if (grab == c)
+	if (grab == c) {
 		cancel_grab();
+    }
 
 	if (c->mapped) {
 		wl_list_remove(&c->link);
@@ -110,11 +116,13 @@ static void xdg_unmap(struct wl_listener *l, void *data) {
 	struct client *c = wl_container_of(l, c, unmap);
 	(void)data;
 
-	if (grab == c)
+	if (grab == c) {
 		cancel_grab();
+    }
 
-	if (focused == c)
+	if (focused == c) {
 		focused = NULL;
+    }
 
 	if (c->scene) {
 		wlr_scene_node_destroy(&c->scene->node);
@@ -153,8 +161,9 @@ static void xdg_commit(struct wl_listener *l, void *data) {
 	struct client *c = wl_container_of(l, c, commit);
 	(void)data;
 
-	if (!c->xdg->initial_commit || c->initial_configured)
+	if (!c->xdg->initial_commit || c->initial_configured) {
 		return;
+    }
 
 	c->initial_configured = true;
 	wlr_xdg_toplevel_set_size(c->xdg->toplevel, DEF_W, DEF_H);

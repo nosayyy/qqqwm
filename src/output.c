@@ -41,18 +41,21 @@ void output_new(struct wl_listener *l, void *data) {
 	wlr_output_state_set_enabled(&st, 1);
 
 	mode = wlr_output_preferred_mode(o);
-	if (mode)
+	if (mode) {
 		wlr_output_state_set_mode(&st, mode);
+    }
 
-	if (!wlr_output_commit_state(o, &st))
+	if (!wlr_output_commit_state(o, &st)) {
 		die("output commit failed");
+    }
 
 	wlr_output_state_finish(&st);
 	output = o;
 
 	scene_output = wlr_scene_output_create(scene, o);
-	if (!scene_output)
+	if (!scene_output) {
 		die("wlr_scene_output_create failed");
+    }
 
 	lo = wlr_output_layout_add_auto(layout, o);
 	wlr_output_layout_get_box(layout, o, &mon_box);

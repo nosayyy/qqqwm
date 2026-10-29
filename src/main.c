@@ -37,7 +37,7 @@ static struct wl_listener l_request_set_primary_selection = {.notify = seat_requ
 int main(void) {
 	const char *socket;
 	struct wl_event_loop *loop;
-	struct wlr_xdg_shell  *xdg_shell;
+	struct wlr_xdg_shell *xdg_shell;
 	struct xkb_context   *xkb_ctx;
 	struct xkb_keymap    *xkb_keymap;
 
@@ -106,8 +106,8 @@ int main(void) {
 	wl_signal_add(&cursor->events.frame,           &l_cursor_frame);
 
 	seat = wlr_seat_create(dpy, "seat0");
-	wl_signal_add(&seat->events.request_set_cursor, &l_request_cursor);
-	wl_signal_add(&seat->events.request_set_selection, &l_request_set_selection);
+	wl_signal_add(&seat->events.request_set_cursor,            &l_request_cursor);
+	wl_signal_add(&seat->events.request_set_selection,         &l_request_set_selection);
 	wl_signal_add(&seat->events.request_set_primary_selection, &l_request_set_primary_selection);
 
 	kb_group = wlr_keyboard_group_create();

@@ -1,21 +1,16 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#ifndef MAX
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#endif
-
-#define CLEANMASK(m) ((m) & ~(WLR_MODIFIER_CAPS | WLR_MODIFIER_MOD2))
-
 /* -- includes ------------------------------------------------ */
-#include <time.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+
+#include <time.h>
+#include <unistd.h>
+#include <string.h>
+#include <signal.h>
 
 #include <libinput.h>
 #include <wayland-server-core.h>
@@ -94,7 +89,7 @@ void  spawn(const char *cmd);
 
 /* -- client.c ------------------------------------------------ */
 struct client *top_client(void);
-void  client_move_resize(struct client *c, int x, int y, int w, int h);
+void   client_move_resize(struct client *c, int x, int y, int w, int h);
 struct client *client_at(double lx, double ly, struct wlr_surface **psurf,
                          double *sx, double *sy);
 void  focus(struct client *c, int lift);
@@ -117,4 +112,9 @@ void  seat_request_set_selection(struct wl_listener *l, void *data);
 void  seat_request_set_primary_selection(struct wl_listener *l, void *data);
 void  cancel_grab(void);
 
-#endif
+
+/* -- defines --------------------------------------------------- */
+#define CLEANMASK(m) ((m) & ~(WLR_MODIFIER_CAPS | WLR_MODIFIER_MOD2))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+#endif // COMMON_H

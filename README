@@ -16,6 +16,7 @@ REQUIREMENTS
   - Wayland development libraries:
        - wayland
        - wayland-protocols
+       - wayland-scanner
        - wlroots
        - libinput
        - libxkbcommon

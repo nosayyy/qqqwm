@@ -12,8 +12,9 @@ void die(const char *fmt, ...) {
 
 void *ecalloc(size_t n, size_t s) {
 	void *p = calloc(n, s);
-	if (!p)
+	if (!p) {
 		die("calloc failed");
+    }
 	return p;
 }
 
@@ -38,3 +39,4 @@ void spawn(const char *cmd) {
 		_exit(0);
 	}
 }
+
