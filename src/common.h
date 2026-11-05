@@ -135,7 +135,6 @@ void  cancel_grab(void);
 // actions
 void  killclient(const Arg *arg);
 void  quit(const Arg *arg);
-void  cycle_layout(const Arg *arg);
 void  move_mouse(const Arg *arg);
 void  resize_mouse(const Arg *arg);
 

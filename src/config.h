@@ -18,7 +18,7 @@
 #define XKB_MODEL           NULL
 #define XKB_LAYOUT          "us,ru"
 #define XKB_VARIANT         NULL
-#define XKB_OPTIONS         NULL
+#define XKB_OPTIONS         "grp:win_space_toggle"
 
 #define MODKEY              WLR_MODIFIER_ALT
 #define SHIFT               WLR_MODIFIER_SHIFT
@@ -32,8 +32,6 @@ static const struct key keys[] UNUSED = {
 	{ MODKEY,           XKB_KEY_Return,  spawn,        {.v = termcmd} },
 	{ MODKEY,           XKB_KEY_q,       killclient,   {0} },
 	{ MODKEY,           XKB_KEY_e,       quit,         {0} },
-	{ MODKEY,           XKB_KEY_space,   cycle_layout, {.i = +1} },
-	{ MODKEY|SHIFT,     XKB_KEY_space,   cycle_layout, {.i = -1} },
 };
 
 static const struct button buttons[] UNUSED = {

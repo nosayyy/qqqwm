@@ -39,23 +39,6 @@ static void start_grab(struct client *c, enum cursor_mode mode) {
 }
 
 
-/* -- layout -------------------------------------------------- */
-
-static void apply_layout(xkb_layout_index_t idx) {
-	struct wlr_keyboard *kb;
-	struct wlr_keyboard *g = &kb_group->keyboard;
-	struct wlr_keyboard_modifiers m;
-
-	wl_list_for_each(kb, &kb_group->devices, link) {
-		m = kb->modifiers;
-		wlr_keyboard_notify_modifiers(kb, m.depressed, m.latched, m.locked, idx);
-	}
-
-	m = g->modifiers;
-	wlr_keyboard_notify_modifiers(g, m.depressed, m.latched, m.locked, idx);
-}
-
-
 /* -- actions ------------------------------------------------- */
 
 void killclient(const Arg *arg) {
@@ -68,18 +51,6 @@ void killclient(const Arg *arg) {
 void quit(const Arg *arg) {
 	(void)arg;
 	wl_display_terminate(dpy);
-}
-
-void cycle_layout(const Arg *arg) {
-	struct wlr_keyboard *kb = &kb_group->keyboard;
-	int n = xkb_keymap_num_layouts(kb->keymap);
-	int cur = kb->modifiers.group;
-
-	if (n < 2) {
-		return;
-    }
-
-	apply_layout(((cur + arg->i) % n + n) % n);
 }
 
 void move_mouse(const Arg *arg) {
@@ -105,7 +76,6 @@ void input_new(struct wl_listener *l, void *data) {
 		    struct wlr_keyboard *kb = wlr_keyboard_from_input_device(dev);
 		    wlr_keyboard_set_keymap(kb, kb_group->keyboard.keymap);
 		    wlr_keyboard_group_add_keyboard(kb_group, kb);
-		    apply_layout(kb_group->keyboard.modifiers.group);
 		    break;
 	    }
 	    case WLR_INPUT_DEVICE_POINTER: {
