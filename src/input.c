@@ -18,29 +18,78 @@ void cancel_grab(void) {
 	cursor_mode = CUR_NORMAL;
 }
 
-static bool start_grab(struct client *c, uint32_t button) {
-	if (button == BTN_RIGHT) {
-		cursor_mode = CUR_RESIZE;
-		grab = c;
-		grab_button = button;
+static void start_grab(struct client *c, enum cursor_mode mode) {
+	if (!c) {
+		return;
+    }
+
+	cursor_mode = mode;
+	grab = c;
+
+	if (mode == CUR_RESIZE) {
 		grab_geom = (struct wlr_box){c->x, c->y, c->w, c->h};
 		grab_x = cursor->x;
 		grab_y = cursor->y;
 		wlr_cursor_set_xcursor(cursor, cursor_mgr, "se-resize");
-		return true;
-	}
-
-	if (button == BTN_LEFT) {
-		cursor_mode = CUR_MOVE;
-		grab = c;
-		grab_button = button;
+	} else {
 		grab_x = cursor->x - c->x;
 		grab_y = cursor->y - c->y;
 		wlr_cursor_set_xcursor(cursor, cursor_mgr, "grabbing");
-		return true;
+	}
+}
+
+
+/* -- layout -------------------------------------------------- */
+
+static void apply_layout(xkb_layout_index_t idx) {
+	struct wlr_keyboard *kb;
+	struct wlr_keyboard *g = &kb_group->keyboard;
+	struct wlr_keyboard_modifiers m;
+
+	wl_list_for_each(kb, &kb_group->devices, link) {
+		m = kb->modifiers;
+		wlr_keyboard_notify_modifiers(kb, m.depressed, m.latched, m.locked, idx);
 	}
 
-	return false;
+	m = g->modifiers;
+	wlr_keyboard_notify_modifiers(g, m.depressed, m.latched, m.locked, idx);
+}
+
+
+/* -- actions ------------------------------------------------- */
+
+void killclient(const Arg *arg) {
+	(void)arg;
+	if (focused) {
+		wlr_xdg_toplevel_send_close(focused->xdg->toplevel);
+    }
+}
+
+void quit(const Arg *arg) {
+	(void)arg;
+	wl_display_terminate(dpy);
+}
+
+void cycle_layout(const Arg *arg) {
+	struct wlr_keyboard *kb = &kb_group->keyboard;
+	int n = xkb_keymap_num_layouts(kb->keymap);
+	int cur = kb->modifiers.group;
+
+	if (n < 2) {
+		return;
+    }
+
+	apply_layout(((cur + arg->i) % n + n) % n);
+}
+
+void move_mouse(const Arg *arg) {
+	(void)arg;
+	start_grab(focused, CUR_MOVE);
+}
+
+void resize_mouse(const Arg *arg) {
+	(void)arg;
+	start_grab(focused, CUR_RESIZE);
 }
 
 
@@ -56,6 +105,7 @@ void input_new(struct wl_listener *l, void *data) {
 		    struct wlr_keyboard *kb = wlr_keyboard_from_input_device(dev);
 		    wlr_keyboard_set_keymap(kb, kb_group->keyboard.keymap);
 		    wlr_keyboard_group_add_keyboard(kb_group, kb);
+		    apply_layout(kb_group->keyboard.modifiers.group);
 		    break;
 	    }
 	    case WLR_INPUT_DEVICE_POINTER: {
@@ -91,21 +141,13 @@ void input_new(struct wl_listener *l, void *data) {
 
 /* -- keyboard ------------------------------------------------ */
 
-static bool keybind(xkb_keysym_t sym) {
-	switch (sym) {
-	    case KEYBIND_TERMINAL:
-		    spawn(TERMINAL);
-		    return true;
-
-	    case KEYBIND_CLOSE:
-		    if (focused) {
-		    	wlr_xdg_toplevel_send_close(focused->xdg->toplevel);
-            }
-		    return true;
-
-	    case KEYBIND_QUIT:
-	    	wl_display_terminate(dpy);
-	    	return true;
+static bool keybind(uint32_t mods, xkb_keysym_t sym) {
+	for (size_t i = 0; i < LENGTH(keys); i++) {
+		if (mods == keys[i].mod && keys[i].func &&
+		    xkb_keysym_to_lower(sym) == xkb_keysym_to_lower(keys[i].sym)) {
+			keys[i].func(&keys[i].arg);
+			return true;
+		}
 	}
 
 	return false;
@@ -115,17 +157,24 @@ void keyboard_key(struct wl_listener *l, void *data) {
 	struct wlr_keyboard_key_event *ev = data;
 	struct wlr_keyboard *kb = &kb_group->keyboard;
 	uint32_t keycode = ev->keycode + 8;
+	uint32_t mods = CLEANMASK(wlr_keyboard_get_modifiers(kb));
+	xkb_level_index_t level;
 	const xkb_keysym_t *syms;
 	int nsyms;
 	bool handled = false;
 	(void)l;
 
-	nsyms = xkb_state_key_get_syms(kb->xkb_state, keycode, &syms);
-
-	if (ev->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-	    CLEANMASK(wlr_keyboard_get_modifiers(kb)) == MOD) {
+	if (ev->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+		nsyms = xkb_state_key_get_syms(kb->xkb_state, keycode, &syms);
 		for (int i = 0; i < nsyms && !handled; i++)
-			handled = keybind(syms[i]);
+			handled = keybind(mods, syms[i]);
+
+		if (!handled) {
+			level = xkb_state_key_get_level(kb->xkb_state, keycode, 0);
+			nsyms = xkb_keymap_key_get_syms_by_level(kb->keymap, keycode, 0, level, &syms);
+			for (int i = 0; i < nsyms && !handled; i++)
+				handled = keybind(mods, syms[i]);
+		}
 	}
 
 	if (handled || consumed[ev->keycode]) {
@@ -214,6 +263,7 @@ static bool handle_press(struct wlr_pointer_button_event *ev) {
 	struct wlr_surface *surf;
 	struct client *c = client_at(cursor->x, cursor->y, &surf, &sx, &sy);
 	struct wlr_keyboard *kb;
+	uint32_t mods;
 
 	if (!c) {
 		return false;
@@ -222,10 +272,18 @@ static bool handle_press(struct wlr_pointer_button_event *ev) {
 	focus(c, true);
 
 	kb = wlr_seat_get_keyboard(seat);
-	if (!kb || CLEANMASK(wlr_keyboard_get_modifiers(kb)) != MOD) {
-		return false;
-    }
-	return start_grab(c, ev->button);
+	mods = kb ? CLEANMASK(wlr_keyboard_get_modifiers(kb)) : 0;
+
+	for (size_t i = 0; i < LENGTH(buttons); i++) {
+		if (buttons[i].mod == mods && buttons[i].button == ev->button &&
+		    buttons[i].func) {
+			grab_button = ev->button;
+			buttons[i].func(&buttons[i].arg);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void pointer_button(struct wl_listener *l, void *data) {
@@ -236,7 +294,7 @@ void pointer_button(struct wl_listener *l, void *data) {
 		if (handle_press(ev)) {
 			return;
         }
-	} else if (cursor_mode != CUR_NORMAL && ev->button == grab_button) {
+	} else if (grab_button && ev->button == grab_button) {
 		cancel_grab();
 		return;
 	}

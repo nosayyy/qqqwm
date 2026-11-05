@@ -1,13 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define MOD                 WLR_MODIFIER_ALT
-#define TERMINAL            "foot"
-
-#define KEYBIND_TERMINAL    XKB_KEY_Return
-#define KEYBIND_CLOSE       XKB_KEY_q
-#define KEYBIND_QUIT        XKB_KEY_e
-
 #define DEF_W               800
 #define DEF_H               600
 #define MIN_W               100
@@ -18,5 +11,35 @@
 
 #define CURSOR_SIZE         24
 #define CURSOR_THEME        NULL
+
+#define WALLPAPER           ".config/wall.ff"
+
+#define XKB_RULES           NULL
+#define XKB_MODEL           NULL
+#define XKB_LAYOUT          "us,ru"
+#define XKB_VARIANT         NULL
+#define XKB_OPTIONS         NULL
+
+#define MODKEY              WLR_MODIFIER_ALT
+#define SHIFT               WLR_MODIFIER_SHIFT
+#define CTRL                WLR_MODIFIER_CTRL
+#define LOGO                WLR_MODIFIER_LOGO
+
+static const char *termcmd[] UNUSED = { "foot", NULL };
+
+static const struct key keys[] UNUSED = {
+	/* mod              keysym           func          arg */
+	{ MODKEY,           XKB_KEY_Return,  spawn,        {.v = termcmd} },
+	{ MODKEY,           XKB_KEY_q,       killclient,   {0} },
+	{ MODKEY,           XKB_KEY_e,       quit,         {0} },
+	{ MODKEY,           XKB_KEY_space,   cycle_layout, {.i = +1} },
+	{ MODKEY|SHIFT,     XKB_KEY_space,   cycle_layout, {.i = -1} },
+};
+
+static const struct button buttons[] UNUSED = {
+	/* mod              button      func          arg */
+	{ MODKEY,           BTN_LEFT,   move_mouse,   {0} },
+	{ MODKEY,           BTN_RIGHT,  resize_mouse, {0} },
+};
 
 #endif

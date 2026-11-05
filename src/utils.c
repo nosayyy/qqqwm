@@ -18,25 +18,25 @@ void *ecalloc(size_t n, size_t s) {
 	return p;
 }
 
-void spawn(const char *cmd) {
+void spawn(const Arg *arg) {
+	char *const *argv = (char *const *)arg->v;
 	pid_t pid = fork();
 	if (pid < 0) {
 		perror("fork");
 		return;
 	}
 	if (pid == 0) {
-		setsid();	
+		setsid();
 		pid = fork();
 		if (pid < 0) {
 			perror("fork");
 			_exit(1);
 		}
 		if (pid == 0) {
-			execlp(cmd, cmd, NULL);
-			perror(cmd);
+			execvp(argv[0], argv);
+			perror(argv[0]);
 			_exit(1);
 		}
 		_exit(0);
 	}
 }
-

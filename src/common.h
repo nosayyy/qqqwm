@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include <time.h>
 #include <unistd.h>
@@ -50,10 +51,30 @@
 #include <wlr/util/log.h>
 
 #include "xdg-shell-protocol.h"
-#include "config.h"
 
 /* -- types --------------------------------------------------- */
 enum cursor_mode  { CUR_NORMAL, CUR_MOVE, CUR_RESIZE };
+
+typedef union {
+	int         i;
+	uint32_t    ui;
+	float       f;
+	const void *v;
+} Arg;
+
+struct key {
+	uint32_t     mod;
+	xkb_keysym_t sym;
+	void       (*func)(const Arg *);
+	Arg          arg;
+};
+
+struct button {
+	uint32_t     mod;
+	uint32_t     button;
+	void       (*func)(const Arg *);
+	Arg          arg;
+};
 
 struct client {
 	struct wlr_xdg_surface *xdg;
@@ -85,7 +106,7 @@ extern struct client                  *grab;
 /* -- utils.c ------------------------------------------------- */
 void  die(const char *fmt, ...);
 void *ecalloc(size_t n, size_t s);
-void  spawn(const char *cmd);
+void  spawn(const Arg *arg);
 
 /* -- client.c ------------------------------------------------ */
 struct client *top_client(void);
@@ -111,10 +132,20 @@ void  pointer_request_cursor(struct wl_listener *l, void *data);
 void  seat_request_set_selection(struct wl_listener *l, void *data);
 void  seat_request_set_primary_selection(struct wl_listener *l, void *data);
 void  cancel_grab(void);
+// actions
+void  killclient(const Arg *arg);
+void  quit(const Arg *arg);
+void  cycle_layout(const Arg *arg);
+void  move_mouse(const Arg *arg);
+void  resize_mouse(const Arg *arg);
 
 
 /* -- defines --------------------------------------------------- */
 #define CLEANMASK(m) ((m) & ~(WLR_MODIFIER_CAPS | WLR_MODIFIER_MOD2))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define LENGTH(a) (sizeof(a) / sizeof((a)[0]))
+#define UNUSED __attribute__((unused))
+
+#include "config.h"
 
 #endif // COMMON_H

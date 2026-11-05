@@ -40,6 +40,13 @@ int main(void) {
 	struct wlr_xdg_shell *xdg_shell;
 	struct xkb_context   *xkb_ctx;
 	struct xkb_keymap    *xkb_keymap;
+	struct xkb_rule_names xkb_rules = {
+		.rules   = XKB_RULES,
+		.model   = XKB_MODEL,
+		.layout  = XKB_LAYOUT,
+		.variant = XKB_VARIANT,
+		.options = XKB_OPTIONS,
+	};
 
 	if (!getenv("XDG_RUNTIME_DIR"))
 		die("XDG_RUNTIME_DIR must be set");
@@ -113,7 +120,7 @@ int main(void) {
 	kb_group = wlr_keyboard_group_create();
 
 	xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	xkb_keymap = xkb_keymap_new_from_names(xkb_ctx, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS);
+	xkb_keymap = xkb_keymap_new_from_names(xkb_ctx, &xkb_rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
 	if (!xkb_keymap)
 		die("xkb_keymap_new_from_names failed");
 
