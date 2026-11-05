@@ -1,4 +1,5 @@
 #include "common.h"
+#include <wlr/interfaces/wlr_buffer.h>
 
 /* DRM_FORMAT_XRGB8888, defined here to avoid pulling in drm_fourcc.h */
 #define FMT_XRGB8888 0x34325258
@@ -6,6 +7,41 @@
 
 static struct wlr_output       *output;
 static struct wlr_scene_output *scene_output;
+
+struct wall_buffer {
+	struct wlr_buffer base;
+	uint32_t         *px;
+};
+
+static void wall_destroy(struct wlr_buffer *b) {
+	struct wall_buffer *wb = wl_container_of(b, wb, base);
+	free(wb->px);
+	free(wb);
+}
+
+static bool wall_begin_access(struct wlr_buffer *b, uint32_t flags,
+		void **data, uint32_t *fmt, size_t *stride) {
+	struct wall_buffer *wb = wl_container_of(b, wb, base);
+
+	if (flags & WLR_BUFFER_DATA_PTR_ACCESS_WRITE) {
+		return false;
+	}
+
+	*data   = wb->px;
+	*fmt    = FMT_XRGB8888;
+	*stride = (size_t)b->width * 4;
+	return true;
+}
+
+static void wall_end_access(struct wlr_buffer *b) {
+	(void)b;
+}
+
+static const struct wlr_buffer_impl wall_impl = {
+	.destroy               = wall_destroy,
+	.begin_data_ptr_access = wall_begin_access,
+	.end_data_ptr_access   = wall_end_access,
+};
 
 static uint32_t be32(const unsigned char *p) {
 	return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 |
@@ -16,7 +52,7 @@ static struct wlr_buffer *wallpaper_buffer(const char *rel) {
 	unsigned char hdr[16], *row = NULL;
 	char path[4096];
 	const char *home = getenv("HOME");
-	struct wlr_buffer *buf;
+	struct wall_buffer *wb;
 	uint32_t *px = NULL;
 	uint32_t w, h, x, y;
 	FILE *f;
@@ -59,17 +95,14 @@ static struct wlr_buffer *wallpaper_buffer(const char *rel) {
 		}
 	}
 
-	/* the buffer keeps its own copy of the pixels */
-	buf = wlr_readonly_data_buffer_create(FMT_XRGB8888, (size_t)w * 4, w, h, px);
-	if (!buf) {
-		wlr_log(WLR_ERROR, "wallpaper: buffer creation failed");
-		goto fail;
-	}
+	/* the buffer takes ownership of px and frees it on destroy */
+	wb = ecalloc(1, sizeof(*wb));
+	wb->px = px;
+	wlr_buffer_init(&wb->base, &wall_impl, w, h);
 
-	free(px);
 	free(row);
 	fclose(f);
-	return buf;
+	return &wb->base;
 
 fail:
 	free(px);
