@@ -18,7 +18,7 @@
 #define XKB_MODEL           NULL
 #define XKB_LAYOUT          "us,ru"
 #define XKB_VARIANT         NULL
-#define XKB_OPTIONS         "grp:win_space_toggle"
+#define XKB_OPTIONS         "grp:alt_shift_toggle"
 
 #define MODKEY              WLR_MODIFIER_ALT
 #define SHIFT               WLR_MODIFIER_SHIFT

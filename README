@@ -4,8 +4,9 @@ DESCRIPTION
 
 FEATURES
   - Focus follows mouse
-  - Move and resize windows with MOD + left/right mouse button
-  - Configurable keybindings via config.h
+  - dwm-style keybinding and mouse button tables in config.h
+  - Multiple keyboard layout via XKB
+  - Farbfeld wallpaper, no image library needed
 
 BUILD
   meson setup build
