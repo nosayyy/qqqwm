@@ -1,2 +1,7 @@
-build/
+build*/
+
 src/config.h
+
+*.a
+*.o
+*.so
