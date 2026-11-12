@@ -63,17 +63,17 @@ typedef union {
 } Arg;
 
 struct key {
-	uint32_t     mod;
-	xkb_keysym_t sym;
-	void       (*func)(const Arg *);
-	Arg          arg;
+	uint32_t      mod;
+	xkb_keysym_t  sym;
+	void        (*func)(const Arg *);
+	Arg           arg;
 };
 
 struct button {
-	uint32_t     mod;
-	uint32_t     button;
-	void       (*func)(const Arg *);
-	Arg          arg;
+	uint32_t      mod;
+	uint32_t      button;
+	void        (*func)(const Arg *);
+	Arg           arg;
 };
 
 struct client {

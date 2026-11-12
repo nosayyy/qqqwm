@@ -18,14 +18,18 @@ add_project_arguments(
   language: 'c',
 )
 
+fs = import('fs')
+if not fs.exists('src/config.h')
+	run_command('cp', 'src/config.def.h', 'src/config.h', check: true)
+endif
+
 wlroots_dep        = dependency('wlroots-0.20')
 wayland_server_dep = dependency('wayland-server')
-xkbcommon_dep      = dependency('xkbcommon')
 wayland_protos_dep = dependency('wayland-protocols')
 libinput_dep       = dependency('libinput')
+xkbcommon_dep      = dependency('xkbcommon')
 
 wayland_scanner = find_program('wayland-scanner')
-
 wl_protocol_dir = wayland_protos_dep.get_variable(pkgconfig: 'pkgdatadir')
 xdg_shell_xml   = wl_protocol_dir / 'stable/xdg-shell/xdg-shell.xml'
 
