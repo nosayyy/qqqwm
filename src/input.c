@@ -1,5 +1,93 @@
 #include "common.h"
 
+static enum cursor_mode cursor_mode;
+static double grab_x, grab_y;
+static struct wlr_box grab_geom;
+static uint32_t grab_button;
+static bool consumed[KEY_MAX + 1];
+
+/* Cancel an active pointer grab and restore the default cursor. */
+void cancel_grab(void) {
+	if (cursor_mode != CUR_NORMAL)
+		wlr_cursor_set_xcursor(cursor, cursor_mgr, "default");
+	grab = NULL;
+	grab_button = 0;
+	cursor_mode = CUR_NORMAL;
+}
+
+static void start_grab(struct client *c, enum cursor_mode mode) {
+	if (!c)
+		return;
+
+	cursor_mode = mode;
+	grab = c;
+
+	if (mode == CUR_RESIZE) {
+		grab_geom = (struct wlr_box){c->x, c->y, c->w, c->h};
+		grab_x = cursor->x;
+		grab_y = cursor->y;
+		wlr_cursor_set_xcursor(cursor, cursor_mgr, "se-resize");
+	} else {
+		grab_x = cursor->x - c->x;
+		grab_y = cursor->y - c->y;
+		wlr_cursor_set_xcursor(cursor, cursor_mgr, "grabbing");
+	}
+}
+
+/* Send a close request to the currently focused client. */
+void killclient(const Arg *arg) {
+	(void)arg;
+	if (focused)
+		wlr_xdg_toplevel_send_close(focused->xdg->toplevel);
+}
+
+/* Terminate the Wayland display event loop. */
+void quit(const Arg *arg) {
+	(void)arg;
+	wl_display_terminate(dpy);
+}
+
+void move_mouse(const Arg *arg) {
+	(void)arg;
+	start_grab(focused, CUR_MOVE);
+}
+
+void resize_mouse(const Arg *arg) {
+	(void)arg;
+	start_grab(focused, CUR_RESIZE);
+}
+
+void input_new(struct wl_listener *l, void *data) {
+	struct wlr_input_device *dev = data;
+	uint32_t caps;
+	(void)l;
+
+	if (dev->type == WLR_INPUT_DEVICE_KEYBOARD) {
+		struct wlr_keyboard *kb = wlr_keyboard_from_input_device(dev);
+		wlr_keyboard_set_keymap(kb, kb_group->keyboard.keymap);
+		wlr_keyboard_group_add_keyboard(kb_group, kb);
+	} else if (dev->type == WLR_INPUT_DEVICE_POINTER) {
+		if (wlr_input_device_is_libinput(dev)) {
+			struct libinput_device *libinput_dev =
+				wlr_libinput_get_device_handle(dev);
+
+			if (libinput_device_config_tap_get_finger_count(libinput_dev) > 0) {
+				libinput_device_config_tap_set_enabled(libinput_dev,
+					LIBINPUT_CONFIG_TAP_ENABLED);
+				libinput_device_config_tap_set_drag_enabled(libinput_dev,
+					LIBINPUT_CONFIG_DRAG_ENABLED);
+			}
+		}
+		wlr_cursor_attach_input_device(cursor, dev);
+	}
+
+	caps = WL_SEAT_CAPABILITY_POINTER;
+	if (!wl_list_empty(&kb_group->devices))
+		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
+	wlr_seat_set_capabilities(seat, caps);
+}
+
+/* Match environment-configured key bindings against the active modifiers. */
 static bool keybind(uint32_t mods, xkb_keysym_t sym) {
 	if (mods != cfg.modkey)
 		return false;
@@ -29,7 +117,6 @@ void keyboard_key(struct wl_listener *l, void *data) {
 	struct wlr_keyboard *kb = &kb_group->keyboard;
 	uint32_t keycode = ev->keycode + 8;
 	uint32_t mods = CLEANMASK(wlr_keyboard_get_modifiers(kb));
-	xkb_level_index_t level;
 	const xkb_keysym_t *syms;
 	int nsyms;
 	bool handled = false;
@@ -41,21 +128,24 @@ void keyboard_key(struct wl_listener *l, void *data) {
 			handled = keybind(mods, syms[i]);
 
 		if (!handled) {
-			level = xkb_state_key_get_level(kb->xkb_state, keycode, 0);
-			nsyms = xkb_keymap_key_get_syms_by_level(kb->keymap, keycode, 0,
-				level, &syms);
+			xkb_level_index_t level =
+				xkb_state_key_get_level(kb->xkb_state, keycode, 0);
+			nsyms = xkb_keymap_key_get_syms_by_level(kb->keymap,
+				keycode, 0, level, &syms);
 			for (int i = 0; i < nsyms && !handled; i++)
 				handled = keybind(mods, syms[i]);
 		}
 	}
 
 	if (ev->keycode <= KEY_MAX && (handled || consumed[ev->keycode])) {
-		consumed[ev->keycode] = ev->state == WL_KEYBOARD_KEY_STATE_PRESSED;
+		consumed[ev->keycode] =
+			ev->state == WL_KEYBOARD_KEY_STATE_PRESSED;
 		return;
 	}
 
 	wlr_seat_set_keyboard(seat, kb);
-	wlr_seat_keyboard_notify_key(seat, ev->time_msec, ev->keycode, ev->state);
+	wlr_seat_keyboard_notify_key(seat, ev->time_msec,
+		ev->keycode, ev->state);
 }
 
 void keyboard_modifiers(struct wl_listener *l, void *data) {
@@ -97,6 +187,7 @@ static void hover_update(uint32_t time) {
 	}
 	if (c && c != focused)
 		focus(c, false);
+
 	wlr_seat_pointer_notify_enter(seat, surf, sx, sy);
 	if (time)
 		wlr_seat_pointer_notify_motion(seat, time, sx, sy);
@@ -110,7 +201,8 @@ static void pointer_motion(uint32_t time) {
 void pointer_motion_relative(struct wl_listener *l, void *data) {
 	struct wlr_pointer_motion_event *ev = data;
 	(void)l;
-	wlr_cursor_move(cursor, &ev->pointer->base, ev->delta_x, ev->delta_y);
+	wlr_cursor_move(cursor, &ev->pointer->base,
+		ev->delta_x, ev->delta_y);
 	pointer_motion(ev->time_msec);
 }
 
@@ -161,7 +253,9 @@ void pointer_button(struct wl_listener *l, void *data) {
 		cancel_grab();
 		return;
 	}
-	wlr_seat_pointer_notify_button(seat, ev->time_msec, ev->button, ev->state);
+
+	wlr_seat_pointer_notify_button(seat, ev->time_msec,
+		ev->button, ev->state);
 }
 
 void pointer_axis(struct wl_listener *l, void *data) {
@@ -180,10 +274,12 @@ void pointer_frame(struct wl_listener *l, void *data) {
 void pointer_request_cursor(struct wl_listener *l, void *data) {
 	struct wlr_seat_pointer_request_set_cursor_event *ev = data;
 	(void)l;
+
 	if (cursor_mode != CUR_NORMAL)
 		return;
 	if (ev->seat_client == seat->pointer_state.focused_client)
-		wlr_cursor_set_surface(cursor, ev->surface, ev->hotspot_x, ev->hotspot_y);
+		wlr_cursor_set_surface(cursor, ev->surface,
+			ev->hotspot_x, ev->hotspot_y);
 }
 
 void seat_request_set_selection(struct wl_listener *l, void *data) {

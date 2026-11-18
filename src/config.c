@@ -11,6 +11,7 @@ static int env_int(const char *name, int fallback, int lo, int hi) {
 
 	if (!value || !*value)
 		return fallback;
+
 	errno = 0;
 	number = strtol(value, &end, 10);
 	if (errno || *end || number < lo || number > hi)
@@ -25,6 +26,7 @@ static const char *env_str(const char *name, const char *fallback) {
 
 static uint32_t env_mod(const char *name) {
 	const char *value = getenv(name);
+
 	if (!value || !strcmp(value, "alt"))
 		return WLR_MODIFIER_ALT;
 	if (!strcmp(value, "logo") || !strcmp(value, "super"))
@@ -46,6 +48,7 @@ static xkb_keysym_t env_keysym(const char *name, xkb_keysym_t fallback) {
 	return sym == XKB_KEY_NoSymbol ? fallback : sym;
 }
 
+/* Load defaults first, then replace them with valid environment values. */
 void config_load(void) {
 	cfg.def_w = env_int("QQQWM_DEF_W", 800, 100, 10000);
 	cfg.def_h = env_int("QQQWM_DEF_H", 600, 80, 10000);

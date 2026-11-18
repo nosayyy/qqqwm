@@ -1,11 +1,5 @@
 #include "common.h"
 
-struct client *top_client(void) {
-	return wl_list_empty(&clients)
-		? NULL
-		: wl_container_of(clients.next, (struct client *)NULL, link);
-}
-
 void client_move_resize(struct client *c, int x, int y, int w, int h) {
 	c->x = x;
 	c->y = y;
@@ -15,8 +9,14 @@ void client_move_resize(struct client *c, int x, int y, int w, int h) {
 	wlr_xdg_toplevel_set_size(c->xdg->toplevel, c->w, c->h);
 }
 
+struct client *top_client(void) {
+	return wl_list_empty(&clients)
+		? NULL
+		: wl_container_of(clients.next, (struct client *)NULL, link);
+}
+
 struct client *client_at(double lx, double ly, struct wlr_surface **psurf,
-						  double *sx, double *sy) {
+						 double *sx, double *sy) {
 	struct wlr_scene_node *node;
 	struct wlr_scene_surface *ss;
 	struct wlr_surface *root;
@@ -71,7 +71,8 @@ void focus(struct client *c, int lift) {
 
 	kb = wlr_seat_get_keyboard(seat);
 	wlr_seat_keyboard_notify_enter(seat, c->xdg->surface,
-		kb ? kb->keycodes : NULL, kb ? kb->num_keycodes : 0,
+		kb ? kb->keycodes : NULL,
+		kb ? kb->num_keycodes : 0,
 		kb ? &kb->modifiers : NULL);
 	wlr_xdg_toplevel_set_activated(c->xdg->toplevel, 1);
 }
