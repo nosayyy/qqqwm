@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include <errno.h>
 
 #include <libinput.h>
 #include <wayland-server-core.h>
@@ -60,6 +61,30 @@ struct client {
 	struct wl_listener map, unmap, commit, destroy;
 };
 
+struct config {
+	int def_w;
+	int def_h;
+	int min_w;
+	int min_h;
+	int repeat_rate;
+	int repeat_delay;
+	int cursor_size;
+	const char *cursor_theme;
+	const char *wallpaper;
+	const char *xkb_rules;
+	const char *xkb_model;
+	const char *xkb_layout;
+	const char *xkb_variant;
+	const char *xkb_options;
+	const char *terminal;
+	const char *modkey;
+	const char *terminal_key;
+	const char *kill_key;
+	const char *quit_key;
+	uint32_t move_button;
+	uint32_t resize_button;
+};
+
 extern struct wl_display *dpy;
 extern struct wlr_renderer *drw;
 extern struct wlr_allocator *alloc;
@@ -75,20 +100,24 @@ extern struct wlr_keyboard_group *kb_group;
 extern struct wl_list clients;
 extern struct client *focused;
 extern struct client *grab;
+extern struct config cfg;
 
+// utils
 void die(const char *fmt, ...);
 void *ecalloc(size_t n, size_t s);
 void spawn(const Arg *arg);
 
+// client
 struct client *top_client(void);
 void client_move_resize(struct client *c, int x, int y, int w, int h);
-struct client *client_at(double lx, double ly, struct wlr_surface **psurf,
-						 double *sx, double *sy);
+struct client *client_at(double lx, double ly, struct wlr_surface **psurf, double *sx, double *sy);
 void focus(struct client *c, int lift);
 void xdg_new_toplevel(struct wl_listener *l, void *data);
 
+// output
 void output_new(struct wl_listener *l, void *data);
 
+// input
 void input_new(struct wl_listener *l, void *data);
 void keyboard_key(struct wl_listener *l, void *data);
 void keyboard_modifiers(struct wl_listener *l, void *data);
@@ -109,7 +138,5 @@ void resize_mouse(const Arg *arg);
 #define CLEANMASK(m) ((m) & ~(WLR_MODIFIER_CAPS | WLR_MODIFIER_MOD2))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define UNUSED __attribute__((unused))
-
-#include "config.h"
 
 #endif

@@ -1,9 +1,5 @@
 #include "common.h"
 
-#include <errno.h>
-
-struct config cfg;
-
 static int env_int(const char *name, int fallback, int lo, int hi) {
 	const char *value = getenv(name);
 	char *end;
