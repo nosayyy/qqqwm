@@ -1,0 +1,2 @@
+	const char *terminal;
+	uint32_t modkey;
