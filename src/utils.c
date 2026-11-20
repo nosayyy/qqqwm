@@ -1,5 +1,11 @@
 #include "common.h"
-#include <sys/types.h>
+
+void *ecalloc(size_t n, size_t s) {
+	void *p = calloc(n, s);
+	if (!p)
+		die("calloc failed");
+	return p;
+}
 
 void die(const char *fmt, ...) {
 	va_list ap;
@@ -10,17 +16,11 @@ void die(const char *fmt, ...) {
 	exit(1);
 }
 
-void *ecalloc(size_t n, size_t s) {
-	void *p = calloc(n, s);
-	if (!p) {
-		die("calloc failed");
-    }
-	return p;
-}
-
+/* Double-fork so the compositor does not remain the direct parent. */
 void spawn(const Arg *arg) {
 	char *const *argv = (char *const *)arg->v;
 	pid_t pid = fork();
+
 	if (pid < 0) {
 		perror("fork");
 		return;
